@@ -1,20 +1,20 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import os
 
-
 # -----------------------------
-# Optional OpenAI Setup (safe)
+# OpenAI Setup (Safe)
 # -----------------------------
-import os
-from openai import OpenAI
+USE_AI = False
+client = None
 
-api_key = os.getenv("OPENAI_API_KEY")
-if api_key:
-    client = OpenAI(api_key=api_key)
-    USE_AI = True
-else:
+try:
+    from openai import OpenAI
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        client = OpenAI(api_key=api_key)
+        USE_AI = True
+except:
     USE_AI = False
 
 # -----------------------------
@@ -24,54 +24,23 @@ st.set_page_config(page_title="AI PMO Dashboard", layout="wide")
 st.title("🚀 AI-Powered PMO Governance Dashboard")
 
 # -----------------------------
+# Chat Memory
+# -----------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# -----------------------------
 # File Upload
 # -----------------------------
 uploaded_file = st.file_uploader("Upload PMO Data (CSV)", type=["csv"])
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-    except Exception as e:
-        st.error(f"Error reading file: {e}")
-        st.stop()
+if uploaded_file:
 
-    if df.empty:
-        st.warning("Uploaded file is empty.")
-        st.stop()
-
-    # -----------------------------
-    # GLOBAL TEXT DATA
-    # -----------------------------
-    text_data = df.to_string() if not df.empty else "No data available"
-
-    # -----------------------------
-    # Key Metrics
-    # -----------------------------
-    st.subheader("📊 Key Metrics")
-
-    total_projects = len(df)
-    status_series = df.get('Status', pd.Series(dtype=str)).astype(str).str.lower()
-    sla_series = df.get('SLA Breach', pd.Series(dtype=str)).astype(str).str.lower()
-    on_time = (status_series == 'on track').sum()
-    sla_breach = (sla_series == 'yes').sum()
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Projects", total_projects)
-    col2.metric("On-Time Delivery", f"{on_time}/{total_projects}")
-    col3.metric("SLA Breaches", sla_breach)
-
-    # -----------------------------
-    # Cycle Time Chart
-    # -----------------------------
-    st.subheader("📈 Cycle Time Analysis")
-    if 'Cycle Time' in df.columns:
-        st.line_chart(df['Cycle Time'])
+    df = pd.read_csv(uploaded_file)
 
     # -----------------------------
     # RAID Classification
     # -----------------------------
-    st.subheader("⚠️ RAID Classification")
-
     def classify_raid(row):
         raid = []
         if pd.notna(row.get('Risk')) and str(row.get('Risk')).lower() != 'none':
@@ -83,103 +52,175 @@ if uploaded_file is not None:
         return ", ".join(raid) if raid else "None"
 
     df['RAID Type'] = df.apply(classify_raid, axis=1)
-    st.dataframe(df, use_container_width=True)
 
     # -----------------------------
-    # Predictive Risk Scoring Feature
+    # Context Builder
     # -----------------------------
-    st.subheader("📊 Predictive Risk Scoring")
+    def prepare_context(df):
+        summary = {
+            "total_projects": len(df),
+            "sla_breaches": int((df['SLA Breach'].astype(str).str.lower() == 'yes').sum()),
+            "on_track": int((df['Status'].astype(str).str.lower() == 'on track').sum())
+        }
 
-    # Simple predictive model based on SLA breach, cycle time, and RAID type
-    def risk_score(row):
-        score = 0
-        if str(row.get('SLA Breach','No')).lower() == 'yes':
-            score += 50
-        if 'Risk' in str(row.get('RAID Type','')):
-            score += 30
-        if 'Issue' in str(row.get('RAID Type','')):
-            score += 20
-        if 'Dependency' in str(row.get('RAID Type','')):
-            score += 10
-        if pd.notna(row.get('Cycle Time')):
-            score += min(row['Cycle Time'],20)  # cap to 20
-        return score
+        top_risks = df[df['RAID Type'].str.contains("Risk", na=False)].head(5).to_dict(orient="records")
 
-    df['Risk Score'] = df.apply(risk_score, axis=1)
+        return f"""
+        Summary: {summary}
+        Top Risks: {top_risks}
+        Sample Data: {df.head(20).to_dict(orient="records")}
+        """
 
-    st.bar_chart(df[['Project','Risk Score']].set_index('Project'))
+    context = prepare_context(df)
 
     # -----------------------------
-    # AI Insights
+    # Metrics
     # -----------------------------
-    st.subheader("🤖 AI Insights")
-    if st.button("Generate AI Insights"):
-        if USE_AI and client:
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a PMO expert."},
-                        {"role": "user", "content": f"Analyze this PMO data and provide risks, root causes, and improvements:\n{text_data}"}
-                    ]
-                )
-                st.write(response.choices[0].message.content)
-            except Exception as e:
-                st.error(f"AI error: {e}")
+    st.subheader("📊 Key Metrics")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Projects", len(df))
+    col2.metric("SLA Breaches", (df['SLA Breach'].astype(str).str.lower() == 'yes').sum())
+    col3.metric("On Track", (df['Status'].astype(str).str.lower() == 'on track').sum())
+
+    # -----------------------------
+    # Intent Detection (Agent Brain)
+    # -----------------------------
+    def detect_intent(question):
+        q = question.lower()
+
+        if "sla" in q and ("show" in q or "list" in q):
+            return "sla_filter"
+
+        elif "risk" in q and ("top" in q or "highest" in q):
+            return "top_risks"
+
+        elif "status" in q:
+            return "status_summary"
+
+        elif "chart" in q or "trend" in q:
+            return "chart"
+
+        return "general_ai"
+
+    # -----------------------------
+    # Execution Layer (Agent Action)
+    # -----------------------------
+    def execute_query(intent, df):
+
+        if intent == "sla_filter":
+            return df[df['SLA Breach'].astype(str).str.lower() == 'yes']
+
+        elif intent == "top_risks":
+            return df.sort_values(by='Cycle Time', ascending=False).head(5)
+
+        elif intent == "status_summary":
+            return df['Status'].value_counts()
+
+        elif intent == "chart":
+            return df['Status'].value_counts()
+
+        return None
+
+    # -----------------------------
+    # Chat UI
+    # -----------------------------
+    st.subheader("💬 Ask PMO AI (Agent Mode)")
+
+    if not USE_AI:
+        st.warning("⚠️ AI not configured. Using smart fallback responses.")
+
+    # Display chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+
+    # Input
+    user_question = st.chat_input("Ask anything about risks, SLA, projects...")
+
+    if user_question:
+
+        # Guardrails
+        if any(x in user_question.lower() for x in ["weather", "sports", "news"]):
+            st.warning("Please ask PMO-related questions.")
+            st.stop()
+
+        st.session_state.chat_history.append({"role": "user", "content": user_question})
+
+        with st.chat_message("user"):
+            st.write(user_question)
+
+        intent = detect_intent(user_question)
+
+        # -----------------------------
+        # CASE 1: Agent executes data
+        # -----------------------------
+        if intent != "general_ai":
+
+            result = execute_query(intent, df)
+
+            with st.chat_message("assistant"):
+                st.write(f"⚙️ Executing action: {intent}")
+
+                if intent == "chart":
+                    st.bar_chart(result)
+
+                elif isinstance(result, pd.DataFrame):
+                    st.dataframe(result)
+
+                else:
+                    st.write(result)
+
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": f"Executed {intent}"
+            })
+
+        # -----------------------------
+        # CASE 2: AI reasoning
+        # -----------------------------
         else:
-            st.warning("AI not configured. Showing sample insights.")
-            st.write("Top Risks: Content delays, metadata issues")
-            st.write("Root Cause: Manual workflows, vendor dependency")
-            st.write("Improvement: Automate QC, improve SLA tracking")
 
-    # -----------------------------
-    # Ask PMO AI
-    # -----------------------------
-    st.subheader("💬 Ask PMO AI")
-    user_question = st.text_input("Ask a question about your PMO data")
-    if user_question and text_data:
-        if USE_AI and client:
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a PMO analyst."},
-                        {"role": "user", "content": f"Data:\n{text_data}\nQuestion: {user_question}"}
-                    ]
-                )
-                st.write(response.choices[0].message.content)
-            except Exception as e:
-                st.error(f"AI error: {e}")
-        else:
-            st.write("Sample Answer: SLA breaches are driven by delays and QC failures.")
+            if USE_AI and client:
+                try:
+                    messages = [
+                        {"role": "system", "content": "You are a senior PMO consultant. Provide structured output: Summary, Key Insights, Recommendations."},
+                        {"role": "system", "content": f"Context:\n{context}"}
+                    ] + st.session_state.chat_history
 
-    # -----------------------------
-    # Survey Sentiment Analysis
-    # -----------------------------
-    st.subheader("📋 Survey Sentiment Analysis")
-    if 'Survey Feedback' in df.columns:
-        def simple_sentiment(text):
-            if isinstance(text, str):
-                t = text.lower()
-                if 'good' in t:
-                    return 'Positive'
-                elif 'bad' in t:
-                    return 'Negative'
-            return 'Neutral'
-        df['Sentiment'] = df['Survey Feedback'].apply(simple_sentiment)
-        st.bar_chart(df['Sentiment'].value_counts())
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=messages
+                    )
 
-    # -----------------------------
-    # Downtime Tracker
-    # -----------------------------
-    st.subheader("⏱️ Downtime Impact Tracker")
-    if 'Downtime (hrs)' in df.columns:
-        total_downtime = df['Downtime (hrs)'].sum()
-        st.metric("Total Downtime (hrs)", total_downtime)
-        st.bar_chart(df['Downtime (hrs)'])
+                    answer = response.choices[0].message.content
+
+                except Exception as e:
+                    answer = f"AI error: {e}"
+
+            else:
+                answer = """
+                Summary: SLA breaches impacting delivery timelines.
+
+                Key Insights:
+                - Vendor dependency delays
+                - Manual QC processes
+
+                Recommendations:
+                - Automate workflows
+                - Improve SLA tracking
+                """
+
+            with st.chat_message("assistant"):
+                st.write(answer)
+
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": answer
+            })
 
 else:
-    st.info("Upload a CSV file to get started.")
+    st.info("Upload a CSV file to begin analysis.")
 
 st.markdown("---")
-st.markdown("Built for PMO Governance, Process Improvement, Predictive Risk Scoring, and AI Insights")
+st.markdown("Built for PMO Governance | Agent AI | Executive Insights 🚀")
