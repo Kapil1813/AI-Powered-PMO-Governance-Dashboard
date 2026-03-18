@@ -35,8 +35,18 @@ if "chat_history" not in st.session_state:
 uploaded_file = st.file_uploader("Upload PMO Data (CSV)", type=["csv"])
 
 if uploaded_file:
-
     df = pd.read_csv(uploaded_file)
+    
+    # Show columns for debugging
+    st.write("Columns in CSV:", df.columns.tolist())
+
+    # -----------------------------
+    # Optional column mapping (flexible)
+    # -----------------------------
+    if 'SLA_Status' in df.columns and 'SLA Breach' not in df.columns:
+        df.rename(columns={'SLA_Status': 'SLA Breach'}, inplace=True)
+    if 'Project_Status' in df.columns and 'Status' not in df.columns:
+        df.rename(columns={'Project_Status': 'Status'}, inplace=True)
 
     # -----------------------------
     # RAID Classification
@@ -57,13 +67,18 @@ if uploaded_file:
     # Context Builder
     # -----------------------------
     def prepare_context(df):
+        # Use get() to avoid KeyError
+        sla_series = df.get('SLA Breach', pd.Series(dtype=str)).astype(str).str.lower()
+        status_series = df.get('Status', pd.Series(dtype=str)).astype(str).str.lower()
+        raid_series = df.get('RAID Type', pd.Series(dtype=str))
+
         summary = {
             "total_projects": len(df),
-            "sla_breaches": int((df['SLA Breach'].astype(str).str.lower() == 'yes').sum()),
-            "on_track": int((df['Status'].astype(str).str.lower() == 'on track').sum())
+            "sla_breaches": int((sla_series == 'yes').sum()) if 'SLA Breach' in df.columns else 0,
+            "on_track": int((status_series == 'on track').sum()) if 'Status' in df.columns else 0
         }
 
-        top_risks = df[df['RAID Type'].str.contains("Risk", na=False)].head(5).to_dict(orient="records")
+        top_risks = df[raid_series.str.contains("Risk", na=False)].head(5).to_dict(orient="records")
 
         return f"""
         Summary: {summary}
@@ -80,46 +95,36 @@ if uploaded_file:
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Projects", len(df))
-    col2.metric("SLA Breaches", (df['SLA Breach'].astype(str).str.lower() == 'yes').sum())
-    col3.metric("On Track", (df['Status'].astype(str).str.lower() == 'on track').sum())
+    col2.metric("SLA Breaches", (df.get('SLA Breach', pd.Series(dtype=str)).astype(str).str.lower() == 'yes').sum())
+    col3.metric("On Track", (df.get('Status', pd.Series(dtype=str)).astype(str).str.lower() == 'on track').sum())
 
     # -----------------------------
     # Intent Detection (Agent Brain)
     # -----------------------------
     def detect_intent(question):
         q = question.lower()
-
         if "sla" in q and ("show" in q or "list" in q):
             return "sla_filter"
-
         elif "risk" in q and ("top" in q or "highest" in q):
             return "top_risks"
-
         elif "status" in q:
             return "status_summary"
-
         elif "chart" in q or "trend" in q:
             return "chart"
-
         return "general_ai"
 
     # -----------------------------
     # Execution Layer (Agent Action)
     # -----------------------------
     def execute_query(intent, df):
-
         if intent == "sla_filter":
-            return df[df['SLA Breach'].astype(str).str.lower() == 'yes']
-
+            return df[df.get('SLA Breach', pd.Series(dtype=str)).astype(str).str.lower() == 'yes']
         elif intent == "top_risks":
-            return df.sort_values(by='Cycle Time', ascending=False).head(5)
-
+            return df.sort_values(by='Cycle Time', ascending=False).head(5) if 'Cycle Time' in df.columns else df.head(5)
         elif intent == "status_summary":
-            return df['Status'].value_counts()
-
+            return df.get('Status', pd.Series(dtype=str)).value_counts()
         elif intent == "chart":
-            return df['Status'].value_counts()
-
+            return df.get('Status', pd.Series(dtype=str)).value_counts()
         return None
 
     # -----------------------------
@@ -128,25 +133,23 @@ if uploaded_file:
     st.subheader("💬 Ask PMO AI (Agent Mode)")
 
     if not USE_AI:
-        st.warning("⚠️ AI not configured. Using smart fallback responses.")
+        st.warning("⚠️ AI not configured. Using fallback responses.")
 
     # Display chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    # Input
+    # Chat input
     user_question = st.chat_input("Ask anything about risks, SLA, projects...")
 
     if user_question:
-
         # Guardrails
         if any(x in user_question.lower() for x in ["weather", "sports", "news"]):
             st.warning("Please ask PMO-related questions.")
             st.stop()
 
         st.session_state.chat_history.append({"role": "user", "content": user_question})
-
         with st.chat_message("user"):
             st.write(user_question)
 
@@ -156,21 +159,15 @@ if uploaded_file:
         # CASE 1: Agent executes data
         # -----------------------------
         if intent != "general_ai":
-
             result = execute_query(intent, df)
-
             with st.chat_message("assistant"):
                 st.write(f"⚙️ Executing action: {intent}")
-
                 if intent == "chart":
                     st.bar_chart(result)
-
                 elif isinstance(result, pd.DataFrame):
                     st.dataframe(result)
-
                 else:
                     st.write(result)
-
             st.session_state.chat_history.append({
                 "role": "assistant",
                 "content": f"Executed {intent}"
@@ -180,7 +177,6 @@ if uploaded_file:
         # CASE 2: AI reasoning
         # -----------------------------
         else:
-
             if USE_AI and client:
                 try:
                     messages = [
@@ -192,12 +188,9 @@ if uploaded_file:
                         model="gpt-4o-mini",
                         messages=messages
                     )
-
                     answer = response.choices[0].message.content
-
                 except Exception as e:
                     answer = f"AI error: {e}"
-
             else:
                 answer = """
                 Summary: SLA breaches impacting delivery timelines.
@@ -213,7 +206,6 @@ if uploaded_file:
 
             with st.chat_message("assistant"):
                 st.write(answer)
-
             st.session_state.chat_history.append({
                 "role": "assistant",
                 "content": answer
