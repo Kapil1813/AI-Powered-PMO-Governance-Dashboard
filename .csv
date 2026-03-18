@@ -1,4 +1,13 @@
-Project,Status,Risk,Issue,Dependency,SLA Breach,Cycle Time,Survey Feedback,Downtime (hrs)
-Content Delivery,Delayed,Studio delay,QC failure,Vendor,Yes,5,Bad experience,2
-Metadata Ops,On Track,None,None,Internal,No,2,Good workflow,0
-Localization,Delayed,Vendor delay,None,3rd Party,Yes,6,Average,3
+Project,ID,Type,Description,Impact,Likelihood,Priority,Owner,Status,Mitigation / Action,Due Date,Comments
+Vubiquity,R001,Risk,Delayed metadata from content providers,High,Medium,High,Kapil Varadarajan,Open,Escalate to provider & adjust timeline,2026-04-01,Title-level metadata critical for platform delivery
+Vubiquity,A001,Assumption,All partners follow the same QC standards,Medium,Low,Medium,QA Lead,Open,Validate QC process with each partner,2026-03-25,Need to confirm regional variations
+Vubiquity,I001,Issue,Subtitle errors found in 5 titles,High,High,High,Localization Manager,In Progress,Correct subtitles & implement automated checks,2026-03-28,Impacts release to multiple territories
+Vubiquity,D001,Dependency,Integration with OTT ingestion system,High,Medium,High,Tech Lead,Open,Coordinate integration schedule,2026-04-05,Delays affect release window
+Spherex,R002,Risk,Cultural ratings delays in APAC,High,High,High,Kapil Varadarajan,Open,Pre-validate ratings & escalate to local teams,2026-03-30,Impacts launch across 15 territories
+Spherex,A002,Assumption,All metadata fields are standardized,Medium,Medium,Medium,Ops Lead,Open,Review and normalize data,2026-03-27,Some fields may be missing or inconsistent
+Spherex,I002,Issue,Missing audio tracks for 3 languages,High,Medium,High,Localization Lead,In Progress,Request missing tracks & update system,2026-03-29,Delays content release for certain territories
+Spherex,D002,Dependency,Approval from regional compliance teams,High,High,High,Compliance Lead,Open,Schedule review meetings,2026-04-02,Critical for on-time release
+Warner Bros,R003,Risk,Delayed approval from studios for marketing assets,Medium,Medium,Medium,Kapil Varadarajan,Open,Escalate with PMO & adjust schedule,2026-04-03,Impacts campaign timelines
+Warner Bros,A003,Assumption,All studios provide correct deliverables,Medium,Low,Medium,Content Manager,Open,Confirm deliverables at kickoff,2026-03-26,Check for last-minute changes
+Warner Bros,I003,Issue,Video QC failed for 2 titles,High,High,High,QA Lead,In Progress,Re-run QC & notify platform,2026-03-28,Delays release by 1 day
+Warner Bros,D003,Dependency,Third-party subtitle vendor,Medium,Medium,Medium,Vendor Manager,Open,Confirm SLA and delivery schedule,2026-03-31,Any delays affect release compliance
