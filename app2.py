@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-from dotenv import load_dotenv
-load_dotenv()# Only use manually
+
+
 # -----------------------------
 # Optional OpenAI Setup (safe)
 # -----------------------------
