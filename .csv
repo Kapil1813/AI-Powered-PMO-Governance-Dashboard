@@ -1,0 +1,4 @@
+Project,Status,Risk,Issue,Dependency,SLA Breach,Cycle Time,Survey Feedback,Downtime (hrs)
+Content Delivery,Delayed,Studio delay,QC failure,Vendor,Yes,5,Bad experience,2
+Metadata Ops,On Track,None,None,Internal,No,2,Good workflow,0
+Localization,Delayed,Vendor delay,None,3rd Party,Yes,6,Average,3
