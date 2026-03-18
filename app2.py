@@ -54,7 +54,7 @@ if uploaded_file:
     df['RAID Type'] = df.apply(classify_raid, axis=1)
 
     # -----------------------------
-    # Context Builder
+    # Context Builder (KEY UPGRADE)
     # -----------------------------
     def prepare_context(df):
         summary = {
@@ -84,143 +84,74 @@ if uploaded_file:
     col3.metric("On Track", (df['Status'].astype(str).str.lower() == 'on track').sum())
 
     # -----------------------------
-    # Intent Detection (Agent Brain)
+    # Chat Section
     # -----------------------------
-    def detect_intent(question):
-        q = question.lower()
-
-        if "sla" in q and ("show" in q or "list" in q):
-            return "sla_filter"
-
-        elif "risk" in q and ("top" in q or "highest" in q):
-            return "top_risks"
-
-        elif "status" in q:
-            return "status_summary"
-
-        elif "chart" in q or "trend" in q:
-            return "chart"
-
-        return "general_ai"
-
-    # -----------------------------
-    # Execution Layer (Agent Action)
-    # -----------------------------
-    def execute_query(intent, df):
-
-        if intent == "sla_filter":
-            return df[df['SLA Breach'].astype(str).str.lower() == 'yes']
-
-        elif intent == "top_risks":
-            return df.sort_values(by='Cycle Time', ascending=False).head(5)
-
-        elif intent == "status_summary":
-            return df['Status'].value_counts()
-
-        elif intent == "chart":
-            return df['Status'].value_counts()
-
-        return None
-
-    # -----------------------------
-    # Chat UI
-    # -----------------------------
-    st.subheader("💬 Ask PMO AI (Agent Mode)")
+    st.subheader("💬 Ask PMO AI (Interactive)")
 
     if not USE_AI:
-        st.warning("⚠️ AI not configured. Using smart fallback responses.")
+        st.warning("⚠️ AI not configured. Showing simulated responses.")
 
     # Display chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    # Input
-    user_question = st.chat_input("Ask anything about risks, SLA, projects...")
+    # Chat input
+    user_question = st.chat_input("Ask about risks, SLA, dependencies...")
 
     if user_question:
 
-        # Guardrails
+        # Guardrail
         if any(x in user_question.lower() for x in ["weather", "sports", "news"]):
             st.warning("Please ask PMO-related questions.")
             st.stop()
 
+        # Save user question
         st.session_state.chat_history.append({"role": "user", "content": user_question})
 
         with st.chat_message("user"):
             st.write(user_question)
 
-        intent = detect_intent(user_question)
+        # AI Response
+        if USE_AI and client:
+            try:
+                messages = [
+                    {"role": "system", "content": "You are a senior PMO consultant. Provide structured answers with Summary, Key Insights, and Recommendations."},
+                    {"role": "system", "content": f"Context:\n{context}"}
+                ] + st.session_state.chat_history
 
-        # -----------------------------
-        # CASE 1: Agent executes data
-        # -----------------------------
-        if intent != "general_ai":
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages
+                )
 
-            result = execute_query(intent, df)
+                answer = response.choices[0].message.content
 
-            with st.chat_message("assistant"):
-                st.write(f"⚙️ Executing action: {intent}")
+            except Exception as e:
+                answer = f"AI error: {e}"
 
-                if intent == "chart":
-                    st.bar_chart(result)
-
-                elif isinstance(result, pd.DataFrame):
-                    st.dataframe(result)
-
-                else:
-                    st.write(result)
-
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": f"Executed {intent}"
-            })
-
-        # -----------------------------
-        # CASE 2: AI reasoning
-        # -----------------------------
         else:
+            # Fallback response
+            answer = """
+            Summary: SLA breaches are impacting delivery timelines.
 
-            if USE_AI and client:
-                try:
-                    messages = [
-                        {"role": "system", "content": "You are a senior PMO consultant. Provide structured output: Summary, Key Insights, Recommendations."},
-                        {"role": "system", "content": f"Context:\n{context}"}
-                    ] + st.session_state.chat_history
+            Key Insights:
+            - Vendor dependencies causing delays
+            - Manual QC processes slowing delivery
 
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=messages
-                    )
+            Recommendations:
+            - Automate QC workflows
+            - Improve SLA tracking dashboards
+            """
 
-                    answer = response.choices[0].message.content
+        # Save AI response
+        st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
-                except Exception as e:
-                    answer = f"AI error: {e}"
-
-            else:
-                answer = """
-                Summary: SLA breaches impacting delivery timelines.
-
-                Key Insights:
-                - Vendor dependency delays
-                - Manual QC processes
-
-                Recommendations:
-                - Automate workflows
-                - Improve SLA tracking
-                """
-
-            with st.chat_message("assistant"):
-                st.write(answer)
-
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": answer
-            })
+        with st.chat_message("assistant"):
+            st.write(answer)
 
 else:
-    st.info("Upload a CSV file to begin analysis.")
+    st.info("Upload a CSV file to start analysis.")
 
 st.markdown("---")
-st.markdown("Built for PMO Governance | Agent AI | Executive Insights 🚀")
+st.markdown("Built for PMO Governance | AI Insights | Interview Demo Ready 🚀")
