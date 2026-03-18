@@ -1,0 +1,11 @@
+Project,Project_ID,RAID_ID,Type,Description,Impact,Likelihood,Priority,Owner,Status,SLA_Status,Project_Health,Due_Date
+Vubiquity,P001,R001,Risk,Delayed metadata from content providers,High,Medium,High,Kapil,Open,At Risk,At Risk,2026-04-01
+Vubiquity,P001,I001,Issue,Subtitle errors in multiple titles,High,High,High,QA Lead,In Progress,Breached,At Risk,2026-03-28
+Vubiquity,P002,D001,Dependency,OTT ingestion dependency delay,High,Medium,High,Tech Lead,Open,At Risk,At Risk,2026-04-05
+Spherex,P003,R002,Risk,Cultural ratings delay in APAC,High,High,High,Kapil,Open,Breached,At Risk,2026-03-30
+Spherex,P003,A001,Assumption,Metadata standardized across regions,Medium,Medium,Medium,Ops Lead,Open,On Time,On Track,2026-03-27
+Spherex,P004,I002,Issue,Missing audio tracks,High,Medium,High,Localization Lead,In Progress,Breached,At Risk,2026-03-29
+Warner Bros,P005,R003,Risk,Studio approval delays,Medium,Medium,Medium,Kapil,Open,At Risk,At Risk,2026-04-03
+Warner Bros,P005,D002,Dependency,Third-party subtitle vendor delay,Medium,Medium,Medium,Vendor Manager,Open,On Time,On Track,2026-03-31
+Warner Bros,P006,I003,Issue,QC failure for titles,High,High,High,QA Lead,In Progress,Breached,Delayed,2026-03-28
+Warner Bros,P006,A002,Assumption,All deliverables received on time,Medium,Low,Medium,Content Manager,Open,On Time,On Track,2026-03-26
