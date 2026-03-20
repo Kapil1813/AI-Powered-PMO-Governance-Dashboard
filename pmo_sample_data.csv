@@ -1,0 +1,16 @@
+Project ID,Project Name,Owner,Status,SLA Breach,Risk,Issue,Dependency,Region,Priority,Go Live Date
+P001,Batman Release US,Kapil,Delayed,Yes,Rating mismatch in US,Metadata incomplete,Vendor delivery delay,US,High,2026-04-01
+P002,Batman Release EU,Anita,At Risk,No,Inconsistent age ratings across countries,None,Localization dependency,EU,High,2026-04-03
+P003,Superman APAC Launch,Raj,On Track,No,None,None,Platform readiness,APAC,Medium,2026-04-10
+P004,Marvel Catalog Migration,John,Delayed,Yes,Missing metadata fields,QC backlog,System integration delay,Global,High,2026-03-28
+P005,DC Kids Content Rollout,Sneha,At Risk,No,Compliance review pending,None,Legal approval dependency,US,Medium,2026-04-05
+P006,HBO Classics Update,Mike,On Track,No,None,None,None,EU,Low,2026-04-15
+P007,Warner Archive Digitization,Sarah,Delayed,Yes,File format inconsistencies,Manual QC errors,Storage migration,Global,High,2026-03-30
+P008,New Client Onboarding - StudioX,Kapil,At Risk,No,Multiple metadata mismatches,None,Client data dependency,Global,High,2026-04-07
+P009,Netflix Syndication Batch 1,Raj,On Track,No,None,None,Platform sync,US,Medium,2026-04-12
+P010,Prime Video Content Push,Anita,Delayed,Yes,Regional compliance gaps,Delayed approvals,Legal review,EU,High,2026-03-29
+P011,Disney Licensing Integration,John,At Risk,No,Incorrect rights mapping,None,Contract validation,Global,High,2026-04-06
+P012,Anime Expansion APAC,Sneha,On Track,No,None,None,None,APAC,Low,2026-04-20
+P013,Content Cleanup Initiative,Mike,Delayed,Yes,Duplicate metadata records,Data inconsistency,Legacy system issues,Global,Medium,2026-03-27
+P014,Ad-Supported Tier Launch,Sarah,At Risk,No,Ad compliance validation,None,Ad partner dependency,US,High,2026-04-08
+P015,Regional Pricing Alignment,Kapil,Delayed,Yes,Pricing inconsistencies,None,Finance validation,EU,High,2026-03-31
